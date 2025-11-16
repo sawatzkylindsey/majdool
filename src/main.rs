@@ -1,30 +1,35 @@
-use tokio_postgres::{NoTls, Error};
+mod model;
+use model::Media;
 
-#[tokio::main] // By default, tokio_postgres uses the tokio crate as its runtime.
-async fn main() -> Result<(), Error> {
+// use tokio_postgres::{NoTls, Error};
+use sea_query::{ColumnDef, ColumnType, Iden, Order, PostgresQueryBuilder, Query, Table};
+use sea_query_sqlx::SqlxBinder;
+use sqlx::PgPool;
+use crate::model::MediaView;
+
+#[tokio::main]
+async fn main() {
     print!("Hello world!");
 
-    // Connect to the database.
-    let (client, connection) =
-        tokio_postgres::connect("host=localhost user=lindsey dbname=majdool", NoTls).await?;
+    let connection = PgPool::connect("postgres://lindsey@127.0.0.1/majdool")
+        .await
+        .unwrap();
+    let mut pool = connection.try_acquire().unwrap();
 
-    // The connection object performs the actual communication with the database,
-    // so spawn it off to run on its own.
-    tokio::spawn(async move {
-        if let Err(e) = connection.await {
-            eprintln!("connection error: {}", e);
-        }
-    });
+    let (sql, values) = Query::select()
+        .column(Media::Id)
+        .column(Media::Path)
+        .from(Media::Table)
+        .build_sqlx(PostgresQueryBuilder);
 
-    // Now we can execute a simple statement that just returns its parameter.
-    let rows = client
-        .query("SELECT $1::TEXT", &[&"hello world"])
-        .await?;
+    let rows = sqlx::query_as_with::<_, MediaView, _>(&sql, values.clone())
+        .fetch_all(&mut *pool)
+        .await
+        .unwrap();
 
-    // And then check that we got back the same string we sent over.
-    let value: &str = rows[0].get(0);
-    assert_eq!(value, "hello world");
+    for row in rows {
+        println!("{row:?}");
+    }
 
     print!("Doners!");
-    Ok(())
 }
