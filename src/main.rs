@@ -1,35 +1,34 @@
 mod model;
-use model::Media;
+mod listen;
 
-// use tokio_postgres::{NoTls, Error};
-use sea_query::{ColumnDef, ColumnType, Iden, Order, PostgresQueryBuilder, Query, Table};
-use sea_query_sqlx::SqlxBinder;
-use sqlx::PgPool;
-use crate::model::MediaView;
+use std::path::Path;
+use model::{Media, poc_psql};
+use listen::SourceListener;
+
+use blarg::{derive::*, CommandLineParser, Parameter, Scalar};
+
+#[derive(Default, BlargParser)]
+#[blarg(program = "majdool_uploader")]
+struct Args {
+    #[blarg(help = "Source path to upload from")]
+    source: String,
+}
 
 #[tokio::main]
 async fn main() {
-    print!("Hello world!");
+    let args: Args = Args::blarg_parse();
+    let source = Path::new(&args.source);
 
-    let connection = PgPool::connect("postgres://lindsey@127.0.0.1/majdool")
-        .await
-        .unwrap();
-    let mut pool = connection.try_acquire().unwrap();
-
-    let (sql, values) = Query::select()
-        .column(Media::Id)
-        .column(Media::Path)
-        .from(Media::Table)
-        .build_sqlx(PostgresQueryBuilder);
-
-    let rows = sqlx::query_as_with::<_, MediaView, _>(&sql, values.clone())
-        .fetch_all(&mut *pool)
-        .await
-        .unwrap();
-
-    for row in rows {
-        println!("{row:?}");
+    if !source.exists() {
+        panic!("invalid path: {source:?}")
     }
 
-    print!("Doners!");
+    let source_listener = SourceListener::new(|path| {
+        println!("callback: {path:?}");
+    });
+    source_listener.listen(source).await;
+
+    poc_psql().await;
+
+    println!("Doners!");
 }

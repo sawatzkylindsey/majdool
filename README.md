@@ -19,7 +19,9 @@ postgres=# CREATE DATABASE majdool;
 $ psql -d majdool
 $ <manually create tables via migrations/1.sql>
 $ cargo build
-$ ./target/debug/majdool
+$ mkdir test_source
+$ ./target/debug/majdool test_source
+$ touch test_source/abc
 ```
 
 # Design
