@@ -20,7 +20,7 @@ $ psql -d majdool
 $ <manually create tables via migrations/1.sql>
 $ cargo build
 $ mkdir test_source
-$ ./target/debug/majdool test_source
+$ ./target/debug/syncer test_source/ TARGET_PATH/
 $ touch test_source/abc
 ```
 

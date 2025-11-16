@@ -1,0 +1,11 @@
+CREATE TABLE media (
+    id BIGSERIAL PRIMARY KEY,
+    path TEXT NOT NULL,
+    hash BYTEA,
+    synced BOOLEAN,
+    lost BOOLEAN
+);
+
+CREATE UNIQUE INDEX idx_unique_path ON media (path) WHERE (synced and not lost);
+CREATE INDEX idx_path ON media (path);
+CREATE INDEX idx_hash ON media (hash);

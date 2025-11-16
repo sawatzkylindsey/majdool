@@ -1,26 +1,32 @@
-mod model;
 mod listen;
-
-use std::path::Path;
-use model::{Media, poc_psql};
 use listen::SourceListener;
+use majdool_lib::model::poc_psql;
 
 use blarg::{derive::*, CommandLineParser, Parameter, Scalar};
+use std::path::Path;
+
 
 #[derive(Default, BlargParser)]
-#[blarg(program = "majdool_uploader")]
+#[blarg(program = "majdool_syncer")]
 struct Args {
-    #[blarg(help = "Source path to upload from")]
+    #[blarg(help = "Source path to sync from")]
     source: String,
+    #[blarg(help = "Target path to sync to")]
+    target: String,
 }
 
 #[tokio::main]
 async fn main() {
     let args: Args = Args::blarg_parse();
     let source = Path::new(&args.source);
+    let target = Path::new(&args.target);
 
     if !source.exists() {
-        panic!("invalid path: {source:?}")
+        panic!("invalid source path: {source:?}")
+    }
+
+    if !target.exists() {
+        panic!("invalid target path: {target:?}")
     }
 
     let source_listener = SourceListener::new(|path| {
