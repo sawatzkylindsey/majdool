@@ -1,10 +1,9 @@
 mod listen;
 use listen::SourceListener;
-use majdool_lib::model::poc_psql;
 
-use blarg::{derive::*, CommandLineParser, Parameter, Scalar};
+use blarg::{CommandLineParser, Parameter, Scalar, derive::*};
+use majdool_lib::database::tmp_initialize;
 use std::path::Path;
-
 
 #[derive(Default, BlargParser)]
 #[blarg(program = "majdool_syncer")]
@@ -29,12 +28,12 @@ async fn main() {
         panic!("invalid target path: {target:?}")
     }
 
+    let media_db = tmp_initialize().await;
+
     let source_listener = SourceListener::new(|path| {
         println!("callback: {path:?}");
     });
     source_listener.listen(source).await;
-
-    poc_psql().await;
 
     println!("Doners!");
 }

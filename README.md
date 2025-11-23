@@ -156,7 +156,7 @@ This will always succeed (there is no constraint preventing multiple cases of th
 **B - Fix wrong path in media_index**
 Update the `media_index` with the on-disk path.
 Notice, this can fail if another row in the media_index incorrectly uses that path.
-Therefore, this should alwasy happen after **D**.
+Therefore, this should always happen after **D**.
 
 **C - Fix missing from media_index**
 Insert into `media_index` with the `hash(on_disk_file)` and on-disk path.

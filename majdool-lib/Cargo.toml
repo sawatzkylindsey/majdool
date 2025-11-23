@@ -13,3 +13,6 @@ sea-query-sqlx = { version = "0.8.0-rc.9", features = ["sqlx-postgres", "runtime
 tokio = { version = "1", features = ["fs", "io-util", "macros", "rt-multi-thread"] }
 sqlx = "0.8"
 notify = "8.2.0"
+sha2 = "0.10.9"
+hex = "0.4.3"
+tempfile = "3.23.0"
