@@ -4,7 +4,7 @@ use std::path::Path;
 use tokio::fs::{File, OpenOptions};
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
-pub(crate) async fn compute_file_hash(path: impl AsRef<Path>) -> Result<[u8; 32], std::io::Error> {
+pub async fn compute_file_hash(path: impl AsRef<Path>) -> Result<[u8; 32], std::io::Error> {
     let file = File::open(path).await?;
     compute_hash(file).await
 }
@@ -24,12 +24,12 @@ async fn compute_hash<R: AsyncRead + Unpin>(mut reader: R) -> Result<[u8; 32], s
     Ok(hasher.finalize().into())
 }
 
-async fn copy_file(
+pub async fn copy_file(
     source: impl AsRef<Path>,
     target: impl AsRef<Path>,
 ) -> Result<u64, std::io::Error> {
-    let mut src = File::open(source).await?;
-    let mut tgt = OpenOptions::new()
+    let mut source_file = File::open(source).await?;
+    let mut target_file = OpenOptions::new()
         .write(true)
         .create_new(true)
         .open(target)
@@ -39,15 +39,54 @@ async fn copy_file(
     let mut total = 0;
 
     loop {
-        let n = src.read(&mut buffer).await?;
+        let n = source_file.read(&mut buffer).await?;
         if n == 0 {
             break;
         }
-        tgt.write_all(&buffer[..n]).await?;
+        target_file.write_all(&buffer[..n]).await?;
         total += n as u64;
     }
 
     Ok(total)
+}
+
+
+/// Performs content wise comparison of the two paths.
+/// If the content exactly matches, return true.
+/// Otherwise, false.
+pub async fn content_wise_equals(a: impl AsRef<Path>, b: impl AsRef<Path>) -> bool {
+    // TODO: I'm not happy with this approach.
+    // We should be using streaming-constructs to make this simple to understand (and probably more efficient too).
+    let mut a_reader = File::open(a).await?;
+    let mut b_reader = File::open(b).await?;
+
+    let mut a_read_buffer = [0; 8192];
+    let mut b_read_buffer = [0; 8192];
+    let mut a_content_buffer = [0; 2048];
+    let mut b_content_buffer = [0; 2048];
+    let mut a_n = None;
+    let mut b_n = None;
+
+    // Read loop - continually drive async reads to fill the read buffers.
+    // Notice, we're simplifying with a single loop to drive two simultaneous reads (it's not as efficient as possible, but it's a reasonable tradeoff).
+    loop {
+        if a_n.is_none() || a_n.unwrap() != 0 {
+            a_n = Some(a_reader.read(&mut a_read_buffer).await?);
+        }
+
+        if b_n.is_none() || b_n.unwrap() != 0 {
+            b_n = Some(b_reader.read(&mut b_read_buffer).await?);
+        }
+
+
+        let b_n = b_reader.read(&mut b_read_buffer).await?;
+        if a_n == 0 {
+            break;
+        }
+
+        tgt.write_all(&buffer[..n]).await?;
+        total += n as u64;
+    }
 }
 
 #[cfg(test)]

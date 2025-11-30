@@ -1,4 +1,4 @@
-use crate::model::{MediaIndex, MediaIndexView};
+use crate::model::{MediaId, MediaIndex, MediaIndexView};
 use sea_query::{PostgresQueryBuilder, Query};
 use sea_query_sqlx::SqlxBinder;
 use sqlx::pool::PoolConnection;
@@ -9,13 +9,13 @@ pub struct MediaIndexDatabase {
 }
 
 impl MediaIndexDatabase {
-    pub(crate) async fn media_lookup(&self, p0: [u8; 32]) -> Option<u8> {
+    pub async fn media_lookup(&self, p0: [u8; 32]) -> Option<u8> {
         todo!()
     }
 }
 
 impl MediaIndexDatabase {
-    pub(crate) async fn media_insert(&self) -> Result<(), ()> {
+    pub async fn media_insert(&self) -> Result<MediaId, ()> {
         todo!()
     }
 }
