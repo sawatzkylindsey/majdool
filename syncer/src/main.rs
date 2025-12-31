@@ -2,7 +2,7 @@ mod listen;
 use listen::SourceListener;
 
 use blarg::{CommandLineParser, Parameter, Scalar, derive::*};
-use majdool_lib::database::tmp_initialize;
+use majdool_lib::db::database::tmp_initialize;
 use std::path::Path;
 
 #[derive(Default, BlargParser)]

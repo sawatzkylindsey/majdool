@@ -1,15 +1,17 @@
+use crate::fs::model::StreamComparator;
 use sha2::{Digest, Sha256};
-use std::io::Read;
 use std::path::Path;
 use tokio::fs::{File, OpenOptions};
-use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
+use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 
-pub async fn compute_file_hash(path: impl AsRef<Path>) -> Result<[u8; 32], std::io::Error> {
+pub type FileHash = [u8; 32];
+
+pub async fn compute_file_hash(path: impl AsRef<Path>) -> Result<FileHash, std::io::Error> {
     let file = File::open(path).await?;
     compute_hash(file).await
 }
 
-async fn compute_hash<R: AsyncRead + Unpin>(mut reader: R) -> Result<[u8; 32], std::io::Error> {
+async fn compute_hash<R: AsyncRead + Unpin>(mut reader: R) -> Result<FileHash, std::io::Error> {
     let mut hasher = Sha256::new();
     let mut buffer = [0; 8192];
 
@@ -50,43 +52,57 @@ pub async fn copy_file(
     Ok(total)
 }
 
-
 /// Performs content wise comparison of the two paths.
 /// If the content exactly matches, return true.
 /// Otherwise, false.
-pub async fn content_wise_equals(a: impl AsRef<Path>, b: impl AsRef<Path>) -> bool {
-    // TODO: I'm not happy with this approach.
-    // We should be using streaming-constructs to make this simple to understand (and probably more efficient too).
-    let mut a_reader = File::open(a).await?;
-    let mut b_reader = File::open(b).await?;
+pub async fn content_wise_equals(
+    a: impl AsRef<Path>,
+    b: impl AsRef<Path>,
+) -> Result<bool, std::io::Error> {
+    let mut file_a = File::open(&a).await?;
+    let mut file_b = File::open(&b).await?;
+    let mut buffer_a = [0; 8192];
+    let mut buffer_b = [0; 8192];
+    let (left_tx, left_rx) = tokio::sync::mpsc::channel(100);
+    let (right_tx, right_rx) = tokio::sync::mpsc::channel(100);
+    let comparator = StreamComparator::new(left_rx, right_rx);
+    tokio::spawn(async move {
+        let mut a_done = false;
+        let mut b_done = false;
 
-    let mut a_read_buffer = [0; 8192];
-    let mut b_read_buffer = [0; 8192];
-    let mut a_content_buffer = [0; 2048];
-    let mut b_content_buffer = [0; 2048];
-    let mut a_n = None;
-    let mut b_n = None;
+        loop {
+            if !a_done {
+                match file_a.read(&mut buffer_a).await {
+                    Ok(n_a) => {
+                        left_tx.send(buffer_a[..n_a].to_vec()).await.unwrap();
+                        a_done = n_a == 0;
+                    }
+                    Err(e) => {
+                        // TODO: handle the error
+                        break;
+                    }
+                }
+            }
 
-    // Read loop - continually drive async reads to fill the read buffers.
-    // Notice, we're simplifying with a single loop to drive two simultaneous reads (it's not as efficient as possible, but it's a reasonable tradeoff).
-    loop {
-        if a_n.is_none() || a_n.unwrap() != 0 {
-            a_n = Some(a_reader.read(&mut a_read_buffer).await?);
+            if !b_done {
+                match file_b.read(&mut buffer_b).await {
+                    Ok(n_b) => {
+                        right_tx.send(buffer_b[..n_b].to_vec()).await.unwrap();
+                        b_done = n_b == 0;
+                    }
+                    Err(e) => {
+                        // TODO: handle the error
+                        break;
+                    }
+                }
+            }
+
+            if a_done & b_done {
+                break;
+            }
         }
-
-        if b_n.is_none() || b_n.unwrap() != 0 {
-            b_n = Some(b_reader.read(&mut b_read_buffer).await?);
-        }
-
-
-        let b_n = b_reader.read(&mut b_read_buffer).await?;
-        if a_n == 0 {
-            break;
-        }
-
-        tgt.write_all(&buffer[..n]).await?;
-        total += n as u64;
-    }
+    });
+    comparator.await.map_err(|_| std::io::Error::other(""))
 }
 
 #[cfg(test)]
@@ -164,6 +180,23 @@ mod tests {
 
         let err = copy_file(&src, &dst).await.unwrap_err();
         assert_eq!(err.kind(), std::io::ErrorKind::NotFound);
+    }
+
+    #[tokio::test]
+    async fn test_content_wise_equals() {
+        let dir = tempdir().unwrap();
+        let a = dir.path().join("a.txt");
+        let b = dir.path().join("b.txt");
+        let c = dir.path().join("c.txt");
+        tokio::fs::write(&a, b"hello").await.unwrap();
+        tokio::fs::write(&b, b"hello").await.unwrap();
+        tokio::fs::write(&c, b"other").await.unwrap();
+
+        let result = content_wise_equals(&a, &b).await.unwrap();
+        assert!(result);
+
+        let result = content_wise_equals(&a, &c).await.unwrap();
+        assert!(!result);
     }
 
     struct ChunkedReader<R> {

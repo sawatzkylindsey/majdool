@@ -1,4 +1,6 @@
-use crate::model::{MediaId, MediaIndex, MediaIndexView};
+use crate::api::{Media, MediaId};
+use crate::db::model::{MediaIndex, MediaIndexView};
+use crate::fs::fsutil::FileHash;
 use sea_query::{PostgresQueryBuilder, Query};
 use sea_query_sqlx::SqlxBinder;
 use sqlx::pool::PoolConnection;
@@ -9,7 +11,7 @@ pub struct MediaIndexDatabase {
 }
 
 impl MediaIndexDatabase {
-    pub async fn media_lookup(&self, p0: [u8; 32]) -> Option<u8> {
+    pub async fn media_lookup(&self, hash: FileHash) -> Option<Media> {
         todo!()
     }
 }
