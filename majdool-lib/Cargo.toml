@@ -7,18 +7,20 @@ path = "src/lib.rs"
 
 [dependencies]
 futures = "0.3.28"
-blarg = "1.0.4"
+hex = "0.4.3"
 sea-query = "1.0.0-rc.1"
 sea-query-sqlx = { version = "0.8.0-rc.9", features = ["sqlx-postgres", "runtime-tokio"] }
-tokio = { version = "1", features = ["fs", "io-util", "macros", "rt-multi-thread"] }
-sqlx = "0.8"
-notify = "8.2.0"
 sha2 = "0.10.9"
-hex = "0.4.3"
-tempfile = "3.23.0"
+sqlx = "0.8"
 pin-project = "1.1.10"
 rand = "0.8.5"
+tokio = { version = "1", features = ["fs", "io-util", "macros", "rt-multi-thread"] }
 
 [dev-dependencies]
 proptest = "1.6.0"
+#sqlx = { version = "0.8", features = ["runtime-tokio-native-tls", "postgres", "macros"] }
+tempfile = "3.23.0"
+testcontainers = "0.26"
+testcontainers-modules = { version = "0.14", features = ["postgres"] }
 tokio-test = "0.4"
+

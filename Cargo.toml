@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "majdool-lib",
+    "manual-syncer",
     "syncer",
 ]
 resolver = "2"

@@ -8,9 +8,9 @@ use std::path::Path;
 #[derive(Default, BlargParser)]
 #[blarg(program = "majdool_syncer")]
 struct Args {
-    #[blarg(help = "Source path to sync from")]
+    #[blarg(help = "Source directory path to sync from")]
     source: String,
-    #[blarg(help = "Target path to sync to")]
+    #[blarg(help = "Target directory path to sync to")]
     target: String,
 }
 
@@ -20,12 +20,12 @@ async fn main() {
     let source = Path::new(&args.source);
     let target = Path::new(&args.target);
 
-    if !source.exists() {
-        panic!("invalid source path: {source:?}")
+    if !source.exists() || !source.is_dir() {
+        panic!("invalid source path (must exist and be a directory): {source:?}")
     }
 
-    if !target.exists() {
-        panic!("invalid target path: {target:?}")
+    if !target.exists() || !target.is_dir() {
+        panic!("invalid target path (must exist and be a directory): {target:?}")
     }
 
     let media_db = tmp_initialize().await;

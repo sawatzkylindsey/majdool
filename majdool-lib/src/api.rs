@@ -1,9 +1,15 @@
 use crate::fs::fsutil::FileHash;
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct MediaId {
-    value: i64,
+    pub value: i64,
+}
+
+impl MediaId {
+    pub fn new(value: i64) -> Self {
+        Self { value }
+    }
 }
 
 impl MediaId {
@@ -12,6 +18,7 @@ impl MediaId {
     }
 }
 
+#[derive(Debug)]
 pub struct Media {
     pub id: MediaId,
     pub path: PathBuf,
