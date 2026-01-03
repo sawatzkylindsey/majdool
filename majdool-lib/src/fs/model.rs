@@ -1,5 +1,4 @@
 use pin_project::pin_project;
-use std::collections::VecDeque;
 use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
@@ -47,8 +46,8 @@ pub struct StreamComparator {
     left_rx: tokio::sync::mpsc::Receiver<Vec<u8>>,
     right_rx: tokio::sync::mpsc::Receiver<Vec<u8>>,
     // Buffers hold the physical stream representation.
-    left_buffer: VecDeque<u8>,
-    right_buffer: VecDeque<u8>,
+    left_buffer: Vec<u8>,
+    right_buffer: Vec<u8>,
     // Sizes track the virtual stream size and completion.
     left_size: Size,
     right_size: Size,
@@ -65,8 +64,8 @@ impl StreamComparator {
         Self {
             left_rx,
             right_rx,
-            left_buffer: VecDeque::default(),
-            right_buffer: VecDeque::default(),
+            left_buffer: Vec::default(),
+            right_buffer: Vec::default(),
             left_size: Size::default(),
             right_size: Size::default(),
             cursor: 0,
