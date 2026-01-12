@@ -26,7 +26,7 @@ async fn main() {
         panic!("invalid target path (must not exist): {target:?}")
     }
 
-    let mut media_db = tmp_initialize().await;
+    let media_db = tmp_initialize().await;
 
     let hash = compute_file_hash(&source).await.unwrap();
     let result1 = media_db.media_lookup(hash).await;

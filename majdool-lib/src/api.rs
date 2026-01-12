@@ -1,7 +1,7 @@
 use crate::fs::fsutil::FileHash;
 use std::path::PathBuf;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct MediaId {
     pub value: i64,
 }
