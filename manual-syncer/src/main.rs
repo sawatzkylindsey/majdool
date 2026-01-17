@@ -1,5 +1,5 @@
 use blarg::{CommandLineParser, Parameter, Scalar, derive::*};
-use majdool_lib::db::database::tmp_initialize;
+use majdool_lib::db::database::{MediaIndexDatabase, tmp_initialize};
 use majdool_lib::fs::fsutil::compute_file_hash;
 use std::path::Path;
 
@@ -26,7 +26,8 @@ async fn main() {
         panic!("invalid target path (must not exist): {target:?}")
     }
 
-    let media_db = tmp_initialize().await;
+    let pool = tmp_initialize().await;
+    let media_db = MediaIndexDatabase::new(pool);
 
     let hash = compute_file_hash(&source).await.unwrap();
     let result1 = media_db.media_lookup(hash).await;

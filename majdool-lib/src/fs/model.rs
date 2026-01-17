@@ -167,7 +167,6 @@ mod tests {
     use super::*;
     use proptest::prelude::*;
     use rand::RngCore;
-    use std::iter::Cloned;
     use tokio::sync::mpsc;
 
     async fn run_comparison(

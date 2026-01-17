@@ -3,21 +3,23 @@ use notify::{Error, Event, EventKind, RecommendedWatcher, RecursiveMode, Watcher
 use std::path::{Path, PathBuf};
 use tokio::sync::mpsc;
 
-pub struct SourceListener<C: Fn(PathBuf) -> ()> {
+pub struct SourceListener<Fut, C: Fn(PathBuf) -> Fut> {
     tx: mpsc::Sender<Result<Event, Error>>,
     rx: mpsc::Receiver<Result<Event, Error>>,
     callback: C,
 }
 
-impl<C: Fn(PathBuf) -> ()> SourceListener<C> {
+impl<Fut, C> SourceListener<Fut, C>
+where
+    Fut: Future<Output = ()>,
+    C: Fn(PathBuf) -> Fut,
+{
     pub fn new(callback: C) -> Self {
         let (tx, rx) = mpsc::channel(100);
 
         SourceListener { tx, rx, callback }
     }
-}
 
-impl<C: Fn(PathBuf) -> () + Send> SourceListener<C> {
     pub async fn listen(mut self, source: &Path) {
         let mut watcher = RecommendedWatcher::new(
             move |res| {
@@ -35,7 +37,7 @@ impl<C: Fn(PathBuf) -> () + Send> SourceListener<C> {
                     match event.kind {
                         EventKind::Create(CreateKind::File) => match accept_single_path(event) {
                             Ok(path) => {
-                                (self.callback)(path);
+                                (self.callback)(path).await;
                             }
                             Err(reason) => {
                                 println!("DLQ: {reason}")
@@ -43,7 +45,7 @@ impl<C: Fn(PathBuf) -> () + Send> SourceListener<C> {
                         },
                         EventKind::Modify(ModifyKind::Data(_)) => match accept_single_path(event) {
                             Ok(path) => {
-                                (self.callback)(path);
+                                (self.callback)(path).await;
                             }
                             Err(reason) => {
                                 println!("DLQ: {reason}")

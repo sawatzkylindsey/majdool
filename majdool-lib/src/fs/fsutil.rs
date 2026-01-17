@@ -77,7 +77,7 @@ pub async fn content_wise_equals(
                         left_tx.send(buffer_a[..n_a].to_vec()).await.unwrap();
                         a_done = n_a == 0;
                     }
-                    Err(e) => {
+                    Err(_) => {
                         // TODO: handle the error
                         break;
                     }
@@ -90,7 +90,7 @@ pub async fn content_wise_equals(
                         right_tx.send(buffer_b[..n_b].to_vec()).await.unwrap();
                         b_done = n_b == 0;
                     }
-                    Err(e) => {
+                    Err(_) => {
                         // TODO: handle the error
                         break;
                     }
@@ -156,6 +156,7 @@ mod tests {
         tokio::fs::write(&src, b"hello world").await.unwrap();
         let bytes = copy_file(&src, &dst).await.unwrap();
 
+        assert_eq!(bytes, b"hello world".len() as u64);
         assert_eq!(tokio::fs::read(&dst).await.unwrap(), b"hello world");
     }
 

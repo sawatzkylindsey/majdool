@@ -5,13 +5,21 @@ use sea_query::{Expr, ExprTrait, PostgresQueryBuilder, Query};
 use sea_query_sqlx::SqlxBinder;
 use sqlx::{PgPool, Postgres};
 use std::path::Path;
+//
+// pub enum OperationError {
+//
+// }
 
 pub struct MediaIndexDatabase {
     pool: sqlx::Pool<Postgres>,
 }
 
 impl MediaIndexDatabase {
-    pub async fn media_lookup(&self, hash: FileHash) -> Option<Media> {
+    pub fn new(pool: sqlx::Pool<Postgres>) -> Self {
+        Self { pool }
+    }
+
+    pub async fn media_lookup(&self, hash: FileHash) -> Result<Option<Media>, String> {
         let (sql, values) = Query::select()
             .from(MediaIndex::Table)
             .column(MediaIndex::Id)
@@ -27,12 +35,12 @@ impl MediaIndexDatabase {
             .await;
 
         match row {
-            Ok(miv) => Some(Media::from(miv)),
-            Err(_) => None,
+            Ok(miv) => Ok(Some(Media::from(miv))),
+            Err(_) => Ok(None),
         }
     }
 
-    pub async fn media_insert(&self, hash: &FileHash) -> Result<MediaId, ()> {
+    pub async fn media_insert(&self, hash: &FileHash) -> Result<MediaId, String> {
         let (sql, values) = Query::insert()
             .into_table(MediaIndex::Table)
             .columns([MediaIndex::Hash, MediaIndex::Synced, MediaIndex::Lost])
@@ -44,10 +52,10 @@ impl MediaIndexDatabase {
             .fetch_one(&self.pool)
             .await
             .map(|i| MediaId::new(i.0))
-            .map_err(|_| ())
+            .map_err(|e| e.to_string())
     }
 
-    pub async fn media_sync(&self, id: MediaId, path: impl AsRef<Path>) -> Result<(), ()> {
+    pub async fn media_sync(&self, id: MediaId, path: impl AsRef<Path>) -> Result<(), String> {
         let (sql, values) = Query::update()
             .table(MediaIndex::Table)
             .values([
@@ -61,31 +69,26 @@ impl MediaIndexDatabase {
             .execute(&self.pool)
             .await
             .map(|_| ())
-            .map_err(|_| ())
+            .map_err(|e| e.to_string())
     }
 }
 
-pub async fn tmp_initialize() -> MediaIndexDatabase {
-    let pool = PgPool::connect("postgres://lindsey@127.0.0.1/majdool")
+pub async fn tmp_initialize() -> sqlx::Pool<Postgres> {
+    PgPool::connect("postgres://lindsey@127.0.0.1:5432/majdool")
         .await
-        .unwrap();
-    MediaIndexDatabase { pool }
+        .unwrap()
 }
 
 #[cfg(test)]
 mod tests {
-    use crate::api::{Media, MediaId};
+    use crate::api::MediaId;
     use crate::db::database::MediaIndexDatabase;
     use crate::fs::fsutil::FileHash;
-    use futures::sink::drain;
     use rand::RngCore;
     use sqlx::Postgres;
-    use sqlx::pool::PoolConnection;
     use sqlx::postgres::PgPoolOptions;
     use testcontainers::ContainerAsync;
     use testcontainers_modules::{postgres, testcontainers::runners::AsyncRunner};
-    use tokio::sync::OnceCell;
-    use tokio_test::assert_err;
 
     struct TestDb {
         mid: MediaIndexDatabase,
@@ -121,17 +124,17 @@ mod tests {
         let path = "/some/path";
 
         // Execute & verify
-        assert!(mid.media_lookup(hash).await.is_none());
+        assert!(mid.media_lookup(hash).await.unwrap().is_none());
         let result = mid.media_insert(&hash).await.unwrap();
 
-        assert!(mid.media_lookup(hash).await.is_none());
+        assert!(mid.media_lookup(hash).await.unwrap().is_none());
         let media_id = MediaId {
             value: result.value,
         };
 
         // Only after syncing does it show up.
         mid.media_sync(media_id, path).await.unwrap();
-        let result = mid.media_lookup(hash).await.unwrap();
+        let result = mid.media_lookup(hash).await.unwrap().unwrap();
         assert_eq!(result.id, media_id);
         assert_eq!(result.hash, hash);
         assert_eq!(result.path.to_str().unwrap(), path);
@@ -143,7 +146,6 @@ mod tests {
         let test_db = test_db().await;
         let mid = test_db.mid;
         let hash = random_hash();
-        let path = "/some/path";
         let result1 = mid.media_insert(&hash).await.unwrap();
 
         // Execute
